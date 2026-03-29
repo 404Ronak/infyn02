@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infyn — AI Chat</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231d1d1f'/><path d='M9 16h14M16 9v14' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface2: #f0f0f2;
+  --border: rgba(0,0,0,0.08);
+  --text: #1d1d1f;
+  --text-2: #6e6e73;
+  --text-3: #aeaeb2;
+  --accent: #0071e3;
+  --shadow: 0 2px 20px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+  --radius: 18px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+.app { display: flex; flex-direction: column; height: 100dvh; max-width: 780px; margin: 0 auto; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px 14px;
+  background: rgba(245,245,247,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 32px; height: 32px; background: var(--text); border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+.logo-name { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+.header-badge { font-size: 11px; font-weight: 500; color: var(--text-2); background: var(--surface2); padding: 4px 10px; border-radius: 20px; }
+
+#chatMessages { flex: 1; overflow-y: auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 6px; scroll-behavior: smooth; }
+#chatMessages::-webkit-scrollbar { width: 0; }
+
+#emptyState { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 40px 20px; animation: fadeUp 0.5s ease both; }
+.empty-logo { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.empty-icon { width: 56px; height: 56px; background: var(--text); border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+.empty-title { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; }
+.empty-sub { font-size: 15px; color: var(--text-2); margin-top: -8px; text-align: center; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 560px; }
+.chip { font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 8px 16px; cursor: pointer; transition: all var(--transition); white-space: nowrap; }
+.chip:hover { background: var(--text); color: #fff; border-color: var(--text); transform: translateY(-1px); box-shadow: var(--shadow); }
+
+.message-wrap { display: flex; animation: fadeUp 0.25s ease both; }
+.message-wrap.user { justify-content: flex-end; }
+.message-wrap.assistant { justify-content: flex-start; }
+
+.bubble { max-width: 72%; padding: 12px 16px; border-radius: var(--radius); font-size: 15px; line-height: 1.6; word-break: break-word; }
+.bubble.user { background: #0071e3; color: #fff; border-bottom-right-radius: 5px; }
+.bubble.assistant { background: var(--surface); color: var(--text); border-bottom-left-radius: 5px; box-shadow: var(--shadow); }
+
+.bubble code { font-family: var(--mono); font-size: 13px; background: var(--surface2); padding: 2px 6px; border-radius: 5px; }
+.bubble pre { background: var(--surface2); border-radius: 10px; padding: 14px; overflow-x: auto; margin: 8px 0; }
+.bubble pre code { background: none; padding: 0; }
+.bubble.user code { background: rgba(255,255,255,0.2); }
+.bubble.user pre { background: rgba(255,255,255,0.15); }
+
+.generated-image { width: 100%; max-width: 380px; border-radius: 14px; display: block; cursor: pointer; transition: transform var(--transition), box-shadow var(--transition); }
+.generated-image:hover { transform: scale(1.01); box-shadow: var(--shadow-lg); }
+.img-caption { font-size: 11px; color: var(--text-3); margin-top: 6px; font-weight: 500; }
+
+.typing-bubble { display: flex; align-items: center; gap: 5px; padding: 14px 18px; }
+.typing-bubble span { width: 7px; height: 7px; background: var(--text-3); border-radius: 50%; animation: bounce 1.2s infinite; }
+.typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
+.typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+.input-area { padding: 12px 16px 20px; background: rgba(245,245,247,0.85); backdrop-filter: saturate(180%) blur(20px); border-top: 1px solid var(--border); }
+.input-box { display: flex; align-items: flex-end; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 10px 12px 10px 18px; box-shadow: var(--shadow); transition: box-shadow var(--transition), border-color var(--transition); }
+.input-box:focus-within { border-color: rgba(0,113,227,0.35); box-shadow: 0 0 0 3px rgba(0,113,227,0.1), var(--shadow); }
+
+#userInput { flex: 1; border: none; outline: none; background: transparent; font-family: var(--font); font-size: 15px; color: var(--text); resize: none; line-height: 1.5; min-height: 24px; max-height: 140px; overflow-y: auto; }
+#userInput::placeholder { color: var(--text-3); }
+#userInput::-webkit-scrollbar { width: 0; }
+
+#sendBtn { width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background: var(--text); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background var(--transition), transform var(--transition), opacity var(--transition); flex-shrink: 0; }
+#sendBtn:hover:not(:disabled) { background: #333; transform: scale(1.05); }
+#sendBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.input-hint { text-align: center; font-size: 11px; color: var(--text-3); margin-top: 8px; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 520px) { .bubble { max-width: 88%; font-size: 14px; } .empty-title { font-size: 22px; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9h10M9 4v10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <span class="logo-name">Infyn</span>
+    </div>
+    <span class="header-badge">Chat · Search · Image</span>
+  </header>
+
+  <div id="chatMessages">
+    <div id="emptyState">
+      <div class="empty-logo">
+        <div class="empty-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14h16M14 6v16" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </div>
+        <h1 class="empty-title">What can I help with?</h1>
+        <p class="empty-sub">Ask me anything — or try one of these</p>
+      </div>
+      <div class="chips">
+        <button class="chip" data-prompt="What's happening in the world today?">🌐 Today's news</button>
+        <button class="chip" data-prompt="Generate an image of a futuristic city at sunset">🎨 Generate an image</button>
+        <button class="chip" data-prompt="Explain quantum computing in simple words">⚛️ Explain something</button>
+        <button class="chip" data-prompt="Write a short poem about the ocean">✍️ Write a poem</button>
+        <button class="chip" data-prompt="What is the current price of Bitcoin?">₿ Bitcoin price</button>
+        <button class="chip" data-prompt="Give me a fun fact I probably don't know">💡 Fun fact</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-box">
+      <textarea id="userInput" placeholder="Message Infyn…" rows="1" autocomplete="off" spellcheck="true"></textarea>
+      <button id="sendBtn" aria-label="Send">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <p class="input-hint">Enter to send · Shift+Enter for new line</p>
+  </div>
+
+</div>
+
+<script>
+// ============================================
+//  INFYN CONFIG — put your API key below
+// ============================================
+const CONFIG = {
+  OPENAI_API_KEY: "sk-YOUR_OPENAI_KEY_HERE",   // 👈 paste your key here
+  CHAT_MODEL: "gpt-4o",
+  IMAGE_MODEL: "dall-e-3",
+  IMAGE_SIZE: "1024x1024",
+  MAX_HISTORY: 20,
+};
+
+// ============================================
+//  INFYN APP LOGIC
+// ============================================
+let conversationHistory = [];
+let isTyping = false;
+
+const chatMessages = document.getElementById("chatMessages");
+const userInput = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const emptyState = document.getElementById("emptyState");
+
+function isImageRequest(text) {
+  const triggers = ["generate image","create image","make image","draw","imagine","generate a picture","create a picture","show me a picture","generate photo","create photo","paint","illustrate","render","image of","picture of","photo of","artwork of"];
+  const lower = text.toLowerCase();
+  return triggers.some(t => lower.includes(t));
+}
+
+function scrollToBottom() {
+  chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: "smooth" });
+}
+
+function hideEmpty() {
+  if (emptyState) emptyState.style.display = "none";
+}
+
+function formatText(text) {
+  return text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/```([\s\S]*?)```/g,"<pre><code>$1</code></pre>")
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g,"<em>$1</em>")
+    .replace(/\n/g,"<br>");
+}
+
+function addMessage(role, content, isImage = false) {
+  hideEmpty();
+  const wrap = document.createElement("div");
+  wrap.className = `message-wrap ${role}`;
+  const bubble = document.createElement("div");
+  bubble.className = `bubble ${role}`;
+  if (isImage) {
+    const img = document.createElement("img");
+    img.src = content; img.alt = "Generated image"; img.className = "generated-image";
+    img.onclick = () => window.open(content, "_blank");
+    bubble.appendChild(img);
+    const caption = document.createElement("p");
+    caption.className = "img-caption"; caption.textContent = "Click to open full size ↗";
+    bubble.appendChild(caption);
+  } else {
+    bubble.innerHTML = formatText(content);
+  }
+  wrap.appendChild(bubble);
+  chatMessages.appendChild(wrap);
+  scrollToBottom();
+}
+
+function showTyping() {
+  hideEmpty();
+  const wrap = document.createElement("div");
+  wrap.className = "message-wrap assistant"; wrap.id = "typingIndicator";
+  wrap.innerHTML = `<div class="bubble assistant typing-bubble"><span></span><span></span><span></span></div>`;
+  chatMessages.appendChild(wrap);
+  scrollToBottom();
+}
+
+function hideTyping() {
+  const el = document.getElementById("typingIndicator");
+  if (el) el.remove();
+}
+
+function setLoading(state) {
+  isTyping = state;
+  sendBtn.disabled = state;
+  userInput.disabled = state;
+  sendBtn.innerHTML = state
+    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.3"/></svg>`
+    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+async function fetchWebSearch(query) {
+  try {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const parts = [];
+    if (json.AbstractText) parts.push(json.AbstractText);
+    if (json.Answer) parts.push(json.Answer);
+    if (json.Definition) parts.push(json.Definition);
+    if (json.RelatedTopics) json.RelatedTopics.slice(0,3).forEach(t => { if(t.Text) parts.push(t.Text); });
+    return parts.length > 0 ? parts.join("\n\n") : `No instant answer found for: "${query}". Answer from your training knowledge.`;
+  } catch { return `Web search failed for: "${query}". Answer from training knowledge.`; }
+}
+
+async function callChat(userText) {
+  conversationHistory.push({ role: "user", content: userText });
+  if (conversationHistory.length > CONFIG.MAX_HISTORY) conversationHistory = conversationHistory.slice(-CONFIG.MAX_HISTORY);
+
+  const tools = [{
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Search the internet for current information, news, facts, or anything requiring up-to-date knowledge.",
+      parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }
+    }
+  }];
+
+  let response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${CONFIG.OPENAI_API_KEY}` },
+    body: JSON.stringify({
+      model: CONFIG.CHAT_MODEL,
+      messages: [
+        { role: "system", content: "You are Infyn, a smart, friendly, and concise AI assistant. Help users with any question — conversation, coding, facts, creative writing, and more. When you need fresh or real-time information, use the web_search tool." },
+        ...conversationHistory
+      ],
+      tools, tool_choice: "auto"
+    })
+  });
+
+  let data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  let message = data.choices[0].message;
+
+  if (message.tool_calls && message.tool_calls.length > 0) {
+    const toolCall = message.tool_calls[0];
+    const query = JSON.parse(toolCall.function.arguments).query;
+    const searchResult = await fetchWebSearch(query);
+    conversationHistory.push(message);
+    conversationHistory.push({ role: "tool", tool_call_id: toolCall.id, content: searchResult });
+
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${CONFIG.OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model: CONFIG.CHAT_MODEL,
+        messages: [
+          { role: "system", content: "You are Infyn, a smart, friendly AI assistant. Use the search result to give an accurate, up-to-date answer." },
+          ...conversationHistory
+        ]
+      })
+    });
+    data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    message = data.choices[0].message;
+  }
+
+  const reply = message.content || "Sorry, I couldn't get a response.";
+  conversationHistory.push({ role: "assistant", content: reply });
+  return reply;
+}
+
+async function callImageGen(prompt) {
+  const response = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${CONFIG.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: CONFIG.IMAGE_MODEL, prompt, n: 1, size: CONFIG.IMAGE_SIZE })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.data[0].url;
+}
+
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text || isTyping) return;
+  userInput.value = "";
+  autoResize();
+  addMessage("user", text);
+  setLoading(true);
+  showTyping();
+  try {
+    if (isImageRequest(text)) {
+      const imgUrl = await callImageGen(text);
+      hideTyping();
+      addMessage("assistant", imgUrl, true);
+    } else {
+      const reply = await callChat(text);
+      hideTyping();
+      addMessage("assistant", reply);
+    }
+  } catch(err) {
+    hideTyping();
+    addMessage("assistant", `⚠️ Error: ${err.message}`);
+  } finally {
+    setLoading(false);
+    userInput.focus();
+  }
+}
+
+function autoResize() {
+  userInput.style.height = "auto";
+  userInput.style.height = Math.min(userInput.scrollHeight, 140) + "px";
+}
+
+userInput.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+userInput.addEventListener("input", autoResize);
+sendBtn.addEventListener("click", sendMessage);
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => { userInput.value = chip.dataset.prompt; autoResize(); userInput.focus(); });
+});
+</script>
+</body>
+</html>
